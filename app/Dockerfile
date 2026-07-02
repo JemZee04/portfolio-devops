@@ -19,3 +19,25 @@ COPY --from=builder /app/data ./data
 
 EXPOSE 8090
 CMD ["./main"]
+
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/package.json ./package.json
+
+# Гарантированно собираем все три артефакта standalone режима
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public 2>/dev/null || true
+
+USER nextjs
+
+EXPOSE 3000
+ENV PORT=3000
+ENV HOSTNAME="0.0Normally I can help with things like this, but I don't seem to have access to that content. You can try again or ask me for something else.
