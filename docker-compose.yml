@@ -1,0 +1,35 @@
+services:
+  app:
+    build: ./app
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgres://checker:secretpassword@192.168.0.240:5432/checker?sslmode=disable
+
+  frontend:
+    build: .
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    depends_on:
+      - app
+      - frontend
+
+  glances:
+    image: nicolargo/glances:latest
+    restart: unless-stopped
+    pid: "host"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - GLANCES_OPT=-w
