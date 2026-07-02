@@ -1,47 +1,30 @@
-# --- ЭТАП 1: Установка зависимостей ---
-FROM node:20-alpine AS deps
-RUN apk add --no-cache libc6-compat
+# --- ЭТАП 1: Сборка Go-бинарника ---
+FROM golang:1.23-alpine AS builder
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci
+# Кэшируем зависимости отдельным слоем
+COPY go.mod go.sum ./
+RUN go mod download
 
-# --- ЭТАП 2: Сборка приложения ---
-FROM node:20-alpine AS builder
-WORKDIR /app
-
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-ENV NEXT_TELEMETRY_DISABLED=1
+# Статически линкуем бинарник — не нужен рантайм Go в финальном образе
+RUN CGO_ENABLED=0 GOOS=linux go build -o /app/server .
 
-# Собираем проект ( package.json мы обновим на флаг --webpack )
-RUN npm run build
-
-# --- ЭТАП 3: Финальный легковесный образ для запуска ---
-FROM node:20-alpine AS runner
+# --- ЭТАП 2: Финальный легковесный образ для запуска ---
+FROM alpine:3.20 AS runner
 WORKDIR /app
 
-ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
+# ca-certificates нужны для проверки TLS-сертификатов внешних URL, которые опрашивает сервис
+RUN apk add --no-cache ca-certificates
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN addgroup --system --gid 1001 app && adduser --system --uid 1001 app
 
-# Копируем конфиг пакетов
-COPY --from=builder /app/package.json ./package.json
+COPY --from=builder --chown=app:app /app/server ./server
+COPY --from=builder --chown=app:app /app/data ./data
 
-# Гарантированно забираем все три артефакта standalone режима, о которых писал Claude
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public 2>/dev/null || true
+USER app
 
-# Переключаемся на безопасного пользователя
-USER nextjs
+EXPOSE 8090
 
-EXPOSE 3000
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-
-# В режиме standalone запускаем сервер напрямую через node
-CMD ["node", "server.js"]
+CMD ["./server"]

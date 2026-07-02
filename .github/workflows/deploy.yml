@@ -55,6 +55,7 @@ jobs:
           command_timeout: 15m
           envs: GH_TOKEN,GH_ACTOR # Передаем переменные внутрь SSH-сессии
           script: |
+            set -e
             cd ~/my-project
             git pull origin main
             
