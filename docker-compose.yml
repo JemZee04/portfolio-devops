@@ -9,7 +9,7 @@ services:
     build: .
     restart: unless-stopped
     environment:
-      - NODE_ENV=production
+      - NODE_ENV=productionп
 
   nginx:
     image: nginx:alpine
