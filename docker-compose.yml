@@ -1,6 +1,6 @@
 services:
   app:
-    build: ./app
+    build: ./backend
     restart: unless-stopped
     environment:
       - DATABASE_URL=postgres://checker:secretpassword@192.168.0.240:5432/checker?sslmode=disable
