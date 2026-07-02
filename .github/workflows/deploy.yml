@@ -35,8 +35,8 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: ghcr.io/jemzee04/portfolio-devops-frontend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # cache-from: type=gha
+          # cache-to: type=gha,mode=max
 
   deploy:
     needs: build-and-push
