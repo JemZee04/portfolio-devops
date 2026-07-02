@@ -3,7 +3,7 @@ const items = [
   { label: "Сервер (VPS)", className: "border-border-strong text-foreground" },
   { label: "Сервис", className: "border-accent/40 text-accent" },
   { label: "База данных", className: "border-accent-2/40 text-accent-2" },
-  { label: "Планируется", className: "border-warning/40 border-dashed text-warning" },
+  { label: "CI/CD", className: "border-warning/40 text-warning" },
 ];
 
 export function InfraLegend() {

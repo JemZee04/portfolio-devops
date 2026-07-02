@@ -3,11 +3,12 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import {
   Activity,
+  Container,
   Database,
-  GitBranch,
   Globe,
   Server,
   Waypoints,
+  Workflow,
 } from "lucide-react";
 import type { InfraNodeData, InfraNodeKind } from "@/data/infrastructure";
 
@@ -16,7 +17,8 @@ const iconByKind: Record<InfraNodeKind, typeof Server> = {
   server: Server,
   service: Waypoints,
   database: Database,
-  planned: GitBranch,
+  cicd: Workflow,
+  registry: Container,
 };
 
 const accentByKind: Record<InfraNodeKind, string> = {
@@ -24,7 +26,8 @@ const accentByKind: Record<InfraNodeKind, string> = {
   server: "text-foreground border-border-strong",
   service: "text-accent border-accent/40",
   database: "text-accent-2 border-accent-2/40",
-  planned: "text-warning border-warning/40 opacity-80",
+  cicd: "text-warning border-warning/40",
+  registry: "text-warning border-warning/40",
 };
 
 export function InfraNode({ data, selected }: NodeProps & { data: InfraNodeData }) {
@@ -34,7 +37,7 @@ export function InfraNode({ data, selected }: NodeProps & { data: InfraNodeData 
     <div
       className={`glass-card w-56 rounded-xl border px-4 py-3 transition-shadow ${accentByKind[data.kind]} ${
         selected ? "glow" : ""
-      } ${data.kind === "planned" ? "border-dashed" : ""}`}
+      }`}
     >
       <Handle type="target" position={Position.Top} className="!bg-border-strong" />
       <Handle type="target" position={Position.Left} className="!bg-border-strong" />

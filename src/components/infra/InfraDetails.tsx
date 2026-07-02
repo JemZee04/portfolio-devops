@@ -6,7 +6,8 @@ const kindLabel: Record<InfraNodeData["kind"], string> = {
   server: "Сервер",
   service: "Сервис",
   database: "База данных",
-  planned: "Планируется",
+  cicd: "CI/CD",
+  registry: "Реестр образов",
 };
 
 export function InfraDetails({ node }: { node: InfraNodeData | null }) {

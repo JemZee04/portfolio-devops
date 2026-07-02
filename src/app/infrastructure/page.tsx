@@ -3,28 +3,28 @@ import { SectionHeading } from "@/components/SectionHeading";
 import { InfraDiagram } from "@/components/infra/InfraDiagram";
 import { InfraLegend } from "@/components/infra/InfraLegend";
 import { Reveal } from "@/components/Reveal";
-import { ShieldCheck, Boxes, Network } from "lucide-react";
+import { ShieldCheck, Workflow, Network } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Инфраструктура — Данила Кузин",
-  description: "Схема инфраструктуры, на которой развёрнут этот сайт: два VPS, nginx, Go-приложение, PostgreSQL и мониторинг.",
+  description: "Схема инфраструктуры, на которой развёрнут этот сайт: nginx, Next.js, Go API, PostgreSQL, мониторинг и CI/CD через GitHub Actions.",
 };
 
 const highlights = [
   {
     icon: ShieldCheck,
     title: "Изоляция базы данных",
-    text: "PostgreSQL живёт на отдельном VPS без публичного доступа — только по приватному IP от сервера приложения.",
+    text: "PostgreSQL вынесен за пределы App Server — отдельная машина/приватная подсеть, недоступная из интернета напрямую.",
   },
   {
-    icon: Boxes,
-    title: "Docker Compose",
-    text: "Оба сервера подняты через docker-compose: воспроизводимо, декларативно, легко пересобрать с нуля.",
+    icon: Workflow,
+    title: "CI/CD на GitHub Actions",
+    text: "Пуш в main собирает образ фронтенда, пушит в GHCR и деплоит на VPS по SSH — без ручных действий.",
   },
   {
     icon: Network,
     title: "TLS на границе",
-    text: "Домен с выпущенным SSL-сертификатом принимает весь трафик на 443 порту, дальше — reverse proxy через nginx.",
+    text: "Домен с SSL-сертификатом (Let's Encrypt) принимает весь трафик на 443 порту, дальше nginx разводит его по сервисам.",
   },
 ];
 
@@ -34,7 +34,7 @@ export default function InfrastructurePage() {
       <SectionHeading
         eyebrow="Пример из практики"
         title="Инфраструктура этого сайта"
-        description="Реальная схема того, на чём развёрнут этот портфолио: два VPS, разделение по приватной сети, reverse proxy, мониторинг и планы на CI/CD. Кликайте по узлам диаграммы, чтобы увидеть детали."
+        description="Реальная схема того, на чём развёрнут этот портфолио: один App Server с nginx, фронтендом и бэкендом, отдельная база данных и CI/CD-пайплайн на GitHub Actions. Кликайте по узлам диаграммы, чтобы увидеть детали."
       />
 
       <div className="mb-8 grid gap-4 sm:grid-cols-3">
