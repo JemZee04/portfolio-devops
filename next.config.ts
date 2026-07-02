@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: 'standalone', // КРИТИЧЕСКИ ВАЖНО ДЛЯ ЭТОГО DOCKERFILE
+  /* твои остальные настройки */
 };
 
 export default nextConfig;
