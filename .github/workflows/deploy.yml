@@ -65,6 +65,9 @@ jobs:
             # Теперь пулл пройдет без ошибок авторизации
             docker compose pull frontend
             docker compose up -d --build --remove-orphans
+            # Nginx resolves Docker service addresses on startup. Restart it after
+            # recreating frontend so it does not keep the previous container IP.
+            docker compose restart nginx
             
             # На всякий случай разлогиниваемся
             docker logout ghcr.io
