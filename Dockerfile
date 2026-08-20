@@ -39,6 +39,7 @@ COPY --from=builder /app/package.json ./package.json
 # Автоматически копируем собранный сервер и необходимые модули
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 # Переключаемся на безопасного пользователя
 USER nextjs

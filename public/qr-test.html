@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#13231a">
+  <title>Прототип — сканирование QR чека</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0c1711;
+      color: #f4f7f5;
+      --accent: #8bd450;
+      --muted: #a6b2aa;
+      --panel: #14251b;
+      --border: #2c4937;
+      --error: #ff9d8f;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(circle at top, #1e3d2a 0, #0c1711 42%); }
+    main { width: min(100%, 720px); margin: 0 auto; padding: 24px 16px 48px; }
+    h1 { margin: 0 0 8px; font-size: clamp(28px, 8vw, 44px); line-height: 1.02; }
+    h2 { margin: 0 0 12px; font-size: 18px; }
+    p { color: var(--muted); line-height: 1.45; }
+    .badge { display: inline-flex; padding: 6px 10px; margin-bottom: 16px; border: 1px solid var(--border); border-radius: 999px; color: var(--accent); font-size: 12px; font-weight: 800; letter-spacing: .08em; }
+    .panel { margin-top: 16px; padding: 16px; border: 1px solid var(--border); border-radius: 20px; background: color-mix(in srgb, var(--panel) 92%, transparent); box-shadow: 0 18px 60px rgba(0, 0, 0, .18); }
+    .state { display: grid; grid-template-columns: 1fr auto; gap: 10px 16px; align-items: center; }
+    .state strong { color: var(--accent); text-align: right; }
+    .state span { color: var(--muted); }
+    .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+    button, .file-button { min-height: 52px; border: 0; border-radius: 14px; padding: 12px 16px; font: inherit; font-weight: 750; cursor: pointer; text-align: center; }
+    button.primary { background: var(--accent); color: #102014; }
+    button.secondary, .file-button { background: #20382a; color: #f4f7f5; border: 1px solid var(--border); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+    .camera { position: relative; overflow: hidden; aspect-ratio: 3 / 4; margin-top: 16px; border-radius: 24px; background: #050806; border: 1px solid var(--border); }
+    video { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .guide { position: absolute; inset: 50% auto auto 50%; width: 72%; aspect-ratio: 1; transform: translate(-50%, -50%); border: 3px solid var(--accent); border-radius: 18px; box-shadow: 0 0 0 999px rgba(0, 0, 0, .26); pointer-events: none; }
+    .guide::after { content: "Наведите рамку на QR"; position: absolute; left: 50%; bottom: -42px; transform: translateX(-50%); width: max-content; padding: 6px 9px; border-radius: 9px; background: rgba(0, 0, 0, .72); font-size: 12px; }
+    .result { overflow-wrap: anywhere; white-space: pre-wrap; padding: 14px; border-radius: 14px; background: #09120d; color: #dfffc7; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+    .error { color: var(--error); }
+    .fields { display: grid; grid-template-columns: minmax(110px, auto) 1fr; gap: 8px 12px; margin-top: 14px; font-size: 14px; }
+    .fields dt { color: var(--muted); }
+    .fields dd { margin: 0; overflow-wrap: anywhere; }
+    .tabs { display: flex; gap: 8px; margin-top: 22px; }
+    .tabs button { min-height: 40px; padding: 8px 12px; background: transparent; color: var(--muted); border: 1px solid var(--border); }
+    .tabs button.active { background: #20382a; color: #fff; }
+    .walkthrough { font-size: 14px; }
+    .privacy { font-size: 12px; }
+    [hidden] { display: none !important; }
+
+    @media (max-width: 430px) {
+      main { padding-top: max(20px, env(safe-area-inset-top)); }
+      .actions { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="badge">ПРОТОТИП — НЕ PRODUCTION</div>
+    <h1>Распознает ли браузер QR на чеке?</h1>
+    <p>Этот стенд проверяет только одну гипотезу: может ли мобильный Safari или Chrome открыть заднюю камеру и прочитать QR с бумажного чека.</p>
+
+    <section class="panel" aria-labelledby="state-title">
+      <h2 id="state-title">Текущее состояние</h2>
+      <div class="state">
+        <span>Этап</span><strong id="state-label">Подготовка</strong>
+        <span>Безопасное соединение</span><strong id="secure-label">Проверяется</strong>
+        <span>Декодер</span><strong id="decoder-label">Загружается</strong>
+        <span>Время распознавания</span><strong id="duration-label">—</strong>
+      </div>
+      <p id="status-message" role="status">Загружаем QR-декодер…</p>
+    </section>
+
+    <section class="camera" id="camera-panel" hidden>
+      <video id="video" playsinline muted></video>
+      <div class="guide"></div>
+    </section>
+
+    <div class="actions">
+      <button id="start-button" class="primary" type="button" disabled>Открыть камеру</button>
+      <button id="stop-button" class="secondary" type="button" disabled>Остановить</button>
+      <label class="file-button" for="file-input">Загрузить фото QR</label>
+      <input id="file-input" type="file" accept="image/*" capture="environment">
+      <button id="reset-button" class="secondary" type="button">Сбросить результат</button>
+    </div>
+
+    <section class="panel" id="result-panel" hidden aria-labelledby="result-title">
+      <h2 id="result-title">QR распознан</h2>
+      <div class="result" id="raw-result"></div>
+      <dl class="fields" id="fiscal-fields" hidden></dl>
+      <div class="actions">
+        <button id="copy-button" class="secondary" type="button">Скопировать результат</button>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="how-title">
+      <h2 id="how-title">Как проверить</h2>
+      <div class="tabs" role="tablist">
+        <button id="camera-tab" class="active" type="button" role="tab">Камерой</button>
+        <button id="photo-tab" type="button" role="tab">По фотографии</button>
+      </div>
+      <div id="camera-guide" class="walkthrough">
+        <p>1. Откройте страницу по HTTPS на телефоне.<br>2. Нажмите «Открыть камеру» и разрешите доступ.<br>3. Наведите зелёную рамку на QR чека.<br>4. Зафиксируйте время и распознанную строку.</p>
+      </div>
+      <div id="photo-guide" class="walkthrough" hidden>
+        <p>1. Нажмите «Загрузить фото QR».<br>2. Сфотографируйте чек или выберите готовое фото.<br>3. Сравните результат с напечатанным QR.</p>
+      </div>
+      <p class="privacy">Изображение и содержимое QR обрабатываются локально в браузере и никуда не отправляются. Для загрузки декодера странице нужен интернет.</p>
+    </section>
+  </main>
+
+  <script type="module">
+    // Question: can a mobile browser camera decode a QR printed on a paper receipt?
+    const initialState = () => ({
+      phase: "loading",
+      message: "Загружаем QR-декодер…",
+      startedAt: null,
+      durationMs: null,
+      raw: null,
+      error: null,
+    });
+
+    function reduce(state, event) {
+      switch (event.type) {
+        case "DECODER_READY": return { ...state, phase: "ready", message: "Готово к проверке." };
+        case "START": return { ...state, phase: "requesting", message: "Браузер запрашивает доступ к камере…", startedAt: performance.now(), durationMs: null, raw: null, error: null };
+        case "STREAM_READY": return { ...state, phase: "scanning", message: "Камера работает. Наведите рамку на QR чека." };
+        case "DETECTED": return { ...state, phase: "success", message: "QR успешно распознан.", raw: event.raw, durationMs: state.startedAt ? Math.round(performance.now() - state.startedAt) : null, error: null };
+        case "ERROR": return { ...state, phase: "error", message: event.message, error: event.message };
+        case "STOP": return { ...state, phase: "ready", message: "Сканирование остановлено.", startedAt: null };
+        case "RESET": return { ...initialState(), phase: "ready", message: "Результат сброшен. Можно повторить проверку." };
+        default: return state;
+      }
+    }
+
+    const stateLabels = {
+      loading: "Подготовка",
+      ready: "Готов",
+      requesting: "Запрос камеры",
+      scanning: "Ищем QR",
+      success: "Успех",
+      error: "Ошибка",
+    };
+
+    const els = {
+      state: document.querySelector("#state-label"), secure: document.querySelector("#secure-label"), decoder: document.querySelector("#decoder-label"), duration: document.querySelector("#duration-label"),
+      message: document.querySelector("#status-message"), camera: document.querySelector("#camera-panel"), video: document.querySelector("#video"),
+      start: document.querySelector("#start-button"), stop: document.querySelector("#stop-button"), file: document.querySelector("#file-input"), reset: document.querySelector("#reset-button"),
+      resultPanel: document.querySelector("#result-panel"), raw: document.querySelector("#raw-result"), fields: document.querySelector("#fiscal-fields"), copy: document.querySelector("#copy-button"),
+      cameraTab: document.querySelector("#camera-tab"), photoTab: document.querySelector("#photo-tab"), cameraGuide: document.querySelector("#camera-guide"), photoGuide: document.querySelector("#photo-guide"),
+    };
+
+    let state = initialState();
+    let Reader;
+    let reader;
+    let scanControls;
+
+    function dispatch(event) {
+      state = reduce(state, event);
+      render();
+    }
+
+    function render() {
+      els.state.textContent = stateLabels[state.phase];
+      els.secure.textContent = window.isSecureContext ? "Да" : "Нет";
+      els.secure.classList.toggle("error", !window.isSecureContext);
+      els.decoder.textContent = Reader ? "ZXing готов" : "Загружается";
+      els.duration.textContent = state.durationMs === null ? "—" : `${state.durationMs} мс`;
+      els.message.textContent = state.message;
+      els.message.classList.toggle("error", state.phase === "error");
+      els.start.disabled = !Reader || ["requesting", "scanning"].includes(state.phase) || !window.isSecureContext;
+      els.stop.disabled = !["requesting", "scanning"].includes(state.phase);
+      els.camera.hidden = !["requesting", "scanning"].includes(state.phase);
+      els.resultPanel.hidden = !state.raw;
+      if (state.raw) {
+        els.raw.textContent = state.raw;
+        renderFiscalFields(state.raw);
+      }
+    }
+
+    function stopScanner(nextEvent = { type: "STOP" }) {
+      if (scanControls) scanControls.stop();
+      scanControls = null;
+      for (const track of els.video.srcObject?.getTracks?.() ?? []) track.stop();
+      els.video.srcObject = null;
+      dispatch(nextEvent);
+    }
+
+    function explainCameraError(error) {
+      const messages = {
+        NotAllowedError: "Доступ к камере запрещён. Разрешите камеру для этого сайта в настройках браузера.",
+        NotFoundError: "На устройстве не найдена доступная камера.",
+        NotReadableError: "Камера занята другим приложением или недоступна.",
+        OverconstrainedError: "Не удалось выбрать подходящую камеру.",
+      };
+      return messages[error?.name] ?? `Не удалось открыть камеру: ${error?.message || "неизвестная ошибка"}`;
+    }
+
+    async function startScanner() {
+      stopScanner({ type: "START" });
+      try {
+        reader = new Reader();
+        scanControls = await reader.decodeFromConstraints(
+          { video: { facingMode: { ideal: "environment" } }, audio: false },
+          els.video,
+          (result) => {
+            if (!result) return;
+            const raw = result.getText();
+            stopScanner({ type: "DETECTED", raw });
+          },
+        );
+        if (state.phase === "requesting") dispatch({ type: "STREAM_READY" });
+      } catch (error) {
+        stopScanner({ type: "ERROR", message: explainCameraError(error) });
+      }
+    }
+
+    async function decodeFile(file) {
+      if (!file || !Reader) return;
+      dispatch({ type: "START" });
+      const url = URL.createObjectURL(file);
+      try {
+        reader = new Reader();
+        const result = await reader.decodeFromImageUrl(url);
+        dispatch({ type: "DETECTED", raw: result.getText() });
+      } catch (error) {
+        dispatch({ type: "ERROR", message: "QR на фотографии не найден. Попробуйте снять чек ровнее и ближе." });
+      } finally {
+        URL.revokeObjectURL(url);
+        els.file.value = "";
+      }
+    }
+
+    function renderFiscalFields(raw) {
+      const labels = { t: "Дата и время", s: "Сумма", fn: "Номер ФН", i: "Номер ФД", fp: "Фискальный признак", n: "Тип операции" };
+      const params = new URLSearchParams(raw.trim());
+      const values = Object.entries(labels).filter(([key]) => params.has(key));
+      els.fields.hidden = values.length < 3;
+      els.fields.replaceChildren();
+      for (const [key, label] of values) {
+        const dt = document.createElement("dt");
+        const dd = document.createElement("dd");
+        dt.textContent = label;
+        dd.textContent = params.get(key);
+        els.fields.append(dt, dd);
+      }
+    }
+
+    function showGuide(kind) {
+      const camera = kind === "camera";
+      els.cameraTab.classList.toggle("active", camera);
+      els.photoTab.classList.toggle("active", !camera);
+      els.cameraGuide.hidden = !camera;
+      els.photoGuide.hidden = camera;
+    }
+
+    els.start.addEventListener("click", startScanner);
+    els.stop.addEventListener("click", () => stopScanner());
+    els.reset.addEventListener("click", () => stopScanner({ type: "RESET" }));
+    els.file.addEventListener("change", (event) => decodeFile(event.target.files?.[0]));
+    els.copy.addEventListener("click", async () => navigator.clipboard.writeText(state.raw ?? ""));
+    els.cameraTab.addEventListener("click", () => showGuide("camera"));
+    els.photoTab.addEventListener("click", () => showGuide("photo"));
+    window.addEventListener("pagehide", () => stopScanner());
+
+    render();
+    try {
+      const module = await import("https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/+esm");
+      Reader = module.BrowserQRCodeReader;
+      dispatch({ type: "DECODER_READY" });
+    } catch (error) {
+      dispatch({ type: "ERROR", message: "Не удалось загрузить QR-декодер. Проверьте подключение к интернету и обновите страницу." });
+    }
+  </script>
+</body>
+</html>
